@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Python Tutor - Google Gemini</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden;
+        }
+        
+        .header { 
+            background: rgba(255, 255, 255, 0.1); 
+            backdrop-filter: blur(10px);
+            color: white; 
+            padding: 1rem 1.5rem;
+            flex-shrink: 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .python-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+        
+        .status-indicator {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .status-ready { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .status-loading { background: rgba(251, 191, 36, 0.2); color: #f59e0b; }
+        .status-error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        
+        .api-setup { 
+            background: rgba(255, 243, 205, 0.95); 
+            backdrop-filter: blur(10px);
+            padding: 1rem; 
+            display: flex; 
+            gap: 12px; 
+            align-items: flex-start;
+            flex-shrink: 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .api-input { 
+            flex: 1; 
+            padding: 10px 14px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 8px; 
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .api-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
+        .api-button { 
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 8px; 
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .api-button:hover { transform: translateY(-1px); }
+        .api-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .connection-status { 
+            flex: 2;
+            font-size: 12px; 
+            margin-left: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            min-height: 80px;
+            overflow-y: auto;
+            max-height: 120px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .status-line { margin: 2px 0; padding: 1px 0; }
+        .status-trying { color: #f59e0b; }
+        .status-success { color: #10b981; font-weight: bold; }
+        .status-error { color: #ef4444; }
+        .status-info { color: #06b6d4; }
+        
+        .welcome-message { 
+            background: rgba(212, 237, 218, 0.95); 
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(195, 230, 203, 0.8); 
+            padding: 1rem; 
+            margin: 1rem; 
+            border-radius: 12px; 
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 100;
+        }
+        
+        .feature-highlight {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+        
+        .main-container { 
+            flex: 1; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 1rem;
+            padding: 1rem;
+            min-height: 0;
+            overflow: hidden;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+            height: 100%;
+        }
+        
+        .panel-header { 
+            background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%); 
+            color: white; 
+            padding: 1rem 1.5rem; 
+            font-weight: 600;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .context-indicator {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            opacity: 0.8;
+        }
+        
+        .messages { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 1.5rem; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 1rem;
+            min-height: 0;
+            scroll-behavior: smooth;
+        }
+        
+        .message { 
+            padding: 16px 20px; 
+            border-radius: 16px; 
+            max-width: 85%; 
+            line-height: 1.6; 
+            font-size: 14px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-message { 
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
+            color: white; 
+            align-self: flex-end;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .ai-message { 
+            background: rgba(248, 250, 252, 0.8); 
+            border: 1px solid rgba(226, 232, 240, 0.5); 
+            align-self: flex-start; 
+            color: #334155;
+            backdrop-filter: blur(10px);
+        }
+        
+        .code-block { 
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%); 
+            border-radius: 12px; 
+            padding: 16px; 
+            margin: 12px 0; 
+            font-family: 'JetBrains Mono', 'Fira Code', monospace; 
+            color: #e2e8f0; 
+            overflow-x: auto;
+            white-space: pre;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+        
+        .code-block::before {
+            content: 'Python 3';
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        
+        .input-container { 
+            display: flex; 
+            gap: 12px; 
+            padding: 1.5rem; 
+            border-top: 1px solid rgba(226, 232, 240, 0.5); 
+            background: rgba(248, 250, 252, 0.5);
+            flex-shrink: 0;
+        }
+        
+        .message-input { 
+            flex: 1; 
+            padding: 12px 16px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 16px; 
+            outline: none; 
+            resize: none;
+            max-height: 100px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .message-input:focus { border-color: #3b82f6; }
+        
+        .send-button { 
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 16px; 
+            cursor: pointer;
+            flex-shrink: 0;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .send-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .send-button:disabled { 
+            background: #9ca3af; 
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .code-header { 
+            background: linear-gradient(135deg, #1f2937 0%, #374151 100%); 
+            color: white; 
+            padding: 1rem 1.5rem; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            flex-shrink: 0;
+        }
+        
+        .code-controls { 
+            display: flex; 
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .control-btn { 
+            background: rgba(6, 182, 212, 0.8); 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 8px; 
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .control-btn:hover {
+            background: rgba(6, 182, 212, 1);
+            transform: translateY(-1px);
+        }
+        
+        .control-btn:disabled {
+            background: #6b7280;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .ai-assist-btn {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+        
+        .examples-panel {
+            background: rgba(55, 65, 81, 0.9);
+            padding: 12px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .example-btn {
+            background: rgba(139, 92, 246, 0.2);
+            color: #c4b5fd;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .example-btn:hover {
+            background: rgba(139, 92, 246, 0.4);
+            transform: translateY(-1px);
+        }
+        
+        .code-workspace { 
+            flex: 1; 
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+        
+        .editor-container {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+        }
+        
+        .CodeMirror { 
+            font-family: 'JetBrains Mono', 'Fira Code', monospace; 
+            font-size: 14px; 
+            height: 100% !important; 
+            background: #0f172a !important; 
+        }
+        
+        .output-section { 
+            background: #0f172a; 
+            border-top: 2px solid rgba(6, 182, 212, 0.3); 
+            display: flex; 
+            flex-direction: column;
+            min-height: 200px;
+            max-height: 300px;
+            flex-shrink: 0;
+        }
+        
+        .output-header { 
+            background: rgba(6, 182, 212, 0.8); 
+            color: white; 
+            padding: 10px 16px; 
+            font-weight: 600; 
+            font-size: 13px;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .output-status {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+        
+        .output-display { 
+            flex: 1; 
+            background: #0f172a; 
+            padding: 16px; 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 13px; 
+            color: #10b981; 
+            overflow-y: auto; 
+            white-space: pre-wrap;
+            min-height: 0;
+            line-height: 1.5;
+        }
+        
+        .error-output { 
+            color: #ef4444; 
+            background: rgba(239, 68, 68, 0.1); 
+            border-left: 4px solid #ef4444; 
+            padding: 12px; 
+            border-radius: 6px; 
+            margin: 8px 0;
+        }
+        
+        .success-output {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10b981;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 8px 0;
+        }
+        
+        .settings-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .settings-btn:hover { background: rgba(255, 255, 255, 0.3); }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            color: #64748b;
+            font-size: 13px;
+            font-style: italic;
+        }
+        
+        .typing-dots { display: flex; gap: 4px; }
+        
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: #64748b;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="title">
+                <span>🐍</span>
+                <span>AI Python Tutor</span>
+                <div class="python-badge">Python</div>
+                <div id="pythonStatus" class="status-indicator status-loading">Loading...</div>
+            </div>
+            <button onclick="toggleSettings()" class="settings-btn">Connect AI</button>
+        </div>
+    </div>
+    
+    <div id="apiSetup" class="api-setup" style="display: none;">
+        <input type="password" id="googleApiKey" class="api-input" placeholder="Enter your Google AI Studio API Key (AIza...)">
+        <button onclick="connectGemini()" id="connectBtn" class="api-button">Connect to Gemini</button>
+        <div id="connectionStatus" class="connection-status">
+            <div class="status-line status-info">Ready to connect to Google Gemini...</div>
+            <div class="status-line status-info">Free tier: 1500 requests/day</div>
+        </div>
+    </div>
+    
+    <div id="welcomeMessage" class="welcome-message">
+        <div style="font-size: 16px; margin-bottom: 8px;">Welcome to AI Python Tutor!</div>
+        <span style="font-size: 14px;">Learn Python with <strong>live code execution</strong> and AI assistance!</span>
+        <div class="feature-highlight">
+            <strong>Features:</strong> Google Gemini AI, f-strings, modern Python, instant feedback!
+        </div>
+        <div style="margin-top: 12px; font-size: 14px;">
+            Get a free API key at <strong>aistudio.google.com</strong>, then click "Connect AI" to start learning!
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="panel chat-panel">
+            <div class="panel-header">
+                <span>AI Python Tutor</span>
+                <div class="context-indicator" id="contextIndicator">Connect AI to start</div>
+            </div>
+            <div id="messages" class="messages"></div>
+            <div class="input-container">
+                <textarea id="messageInput" class="message-input" placeholder="Ask about Python, or I can help with your current code..." onkeypress="handleKeyPress(event)" rows="1" disabled></textarea>
+                <button onclick="sendMessage()" id="sendButton" class="send-button" disabled>Send</button>
+            </div>
+        </div>
+        
+        <div class="panel code-panel">
+            <div class="code-header">
+                <h3>Live Python Editor</h3>
+                <div class="code-controls">
+                    <button class="control-btn ai-assist-btn" onclick="getCodeHelp()" title="Get AI help with current code" disabled id="helpBtn">Help</button>
+                    <button class="control-btn" onclick="runCode()" id="runButton">Run</button>
+                    <button class="control-btn" onclick="clearCode()">Clear</button>
+                </div>
+            </div>
+            
+            <div class="examples-panel">
+                <button class="example-btn" onclick="insertExample('hello')">Print</button>
+                <button class="example-btn" onclick="insertExample('variable')">Variables</button>
+                <button class="example-btn" onclick="insertExample('input')">Input</button>
+                <button class="example-btn" onclick="insertExample('fstring')">F-Strings</button>
+                <button class="example-btn" onclick="insertExample('types')">Types</button>
+                <button class="example-btn" onclick="insertExample('string')">Strings</button>
+                <button class="example-btn" onclick="insertExample('if')">If/Else</button>
+                <button class="example-btn" onclick="insertExample('loop')">Loops</button>
+                <button class="example-btn" onclick="insertExample('list')">Lists</button>
+                <button class="example-btn" onclick="insertExample('function')">Functions</button>
+            </div>
+            
+            <div class="code-workspace">
+                <div class="editor-container">
+                    <textarea id="codeEditor" style="display: none;">print(f"Hello, World! This is Python 3 with f-strings!")</textarea>
+                </div>
+                <div class="output-section">
+                    <div class="output-header">
+                        <span>Output</span>
+                        <span class="output-status" id="outputStatus">Ready</span>
+                    </div>
+                    <div class="output-display" id="outputDisplay">Loading Python environment...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+
+    <script>
+        let googleApiKey = '';
+        let editor = null;
+        let isRunning = false;
+        let messages = [];
+        let currentError = null;
+        let isConnected = false;
+        let pyodide = null;
+        
+        const SYSTEM_PROMPT = `You are a Python tutor. Help students learn Python programming with clear, concise explanations.
+
+CRITICAL: You MUST respond with valid JSON only. No extra text, no markdown fences, no explanations outside the JSON.
+
+Response format:
+{
+  "explanation": "Brief explanation (2-3 sentences)",
+  "code": "Python code example if needed (optional)",
+  "suggestions": ["specific actionable tips"]
+}
+
+Use modern Python syntax with f-strings. Reference the student's current code when helping debug. Keep explanations brief and helpful.`;
+        
+        const examples = {
+            'hello': 'print("Hello, World!")\nname = "Python Programmer"\nprint(f"Welcome, {name}!")\nprint(f"Today is your day to learn Python 3!")',
+            'variable': '# Modern Python variables with f-strings\nname = "Alice"\nage = 16\nscore = 95.5\ngrade_letter = "A"\n\nprint(f"Student: {name}")\nprint(f"Age: {age} years old")\nprint(f"Score: {score}% (Grade: {grade_letter})")\n\n# Multiple variables in one f-string\nprint(f"{name} is {age} and scored {score}%")',
+            'input': '# Interactive input with f-strings\nname = input("What is your name? ")\nage = input("How old are you? ")\nfavorite_subject = input("What\'s your favorite subject? ")\n\n# Modern string formatting\nprint(f"Hello {name}!")\nprint(f"You are {age} years old.")\nprint(f"Your favorite subject is {favorite_subject}.")\nprint(f"Nice to meet you, {name}!")',
+            'fstring': '# F-String Masterclass - Python 3.6+ Magic!\nname = "Alice"\nage = 16\nscore = 87.356\n\n# Basic f-strings\nprint(f"Hello {name}, you are {age} years old")\n\n# Formatting numbers\nprint(f"Score: {score:.2f}%")  # 2 decimal places\nprint(f"Score as integer: {score:.0f}%")  # No decimals\n\n# Expressions inside f-strings\nprint(f"Next year you\'ll be {age + 1}")\nprint(f"Your score doubled: {score * 2:.1f}%")\nprint(f"Grade: {\'A\' if score >= 90 else \'B\' if score >= 80 else \'C\'}")',
+            'types': '# Data types with modern Python\nname = "Alice"        # string\nage = 16             # integer  \nheight = 5.6         # float\nis_student = True    # boolean\nhobbies = ["coding", "reading"]  # list\n\n# Modern f-string type display\nprint(f"Name: {name} (type: {type(name).__name__})")\nprint(f"Age: {age} (type: {type(age).__name__})")\nprint(f"Height: {height} (type: {type(height).__name__})")\nprint(f"Is student: {is_student} (type: {type(is_student).__name__})")',
+            'string': '# String operations with f-strings\ntext = "Python Programming"\nfirst_name = "alice"\nlast_name = "johnson"\n\n# String methods\nprint(f"Original: {text}")\nprint(f"Length: {len(text)} characters")\nprint(f"Uppercase: {text.upper()}")\nprint(f"Lowercase: {text.lower()}")\n\n# Name formatting\nfull_name = f"{first_name.title()} {last_name.title()}"\nprint(f"Full name: {full_name}")\nprint(f"Initials: {first_name[0].upper()}{last_name[0].upper()}")',
+            'if': '# Modern if-else with f-strings\nscore = 85\nname = "Alice"\n\nif score >= 90:\n    grade = "A"\n    message = "Excellent!"\nelif score >= 80:\n    grade = "B" \n    message = "Great job!"\nelif score >= 70:\n    grade = "C"\n    message = "Good work!"\nelse:\n    grade = "F"\n    message = "Keep trying!"\n\nprint(f"{name}\'s grade: {grade}")\nprint(f"Score: {score}% - {message}")\n\n# Ternary operator\nstatus = "Pass" if score >= 70 else "Fail"\nprint(f"Status: {status}")',
+            'loop': '# Modern loops with f-strings\nprint("Counting up:")\nfor i in range(1, 6):\n    print(f"Count: {i}")\n\nprint("\\nCountdown:")\nfor i in range(5, 0, -1):\n    print(f"Countdown: {i}")\nprint("Blast off!")\n\n# Loop with names\nstudents = ["Alice", "Bob", "Charlie"]\nfor i, student in enumerate(students, 1):\n    print(f"{i}. {student}")',
+            'list': '# List operations with f-strings\nfruits = ["apple", "banana", "orange"]\nprint(f"Original: {fruits}")\nprint(f"Length: {len(fruits)}")\n\n# Adding items\nfruits.append("grape")\nprint(f"After adding: {fruits}")\n\n# Accessing items\nprint(f"First: {fruits[0]}")\nprint(f"Last: {fruits[-1]}")\n\n# List comprehension\nsquares = [x**2 for x in range(5)]\nprint(f"Squares: {squares}")',
+            'function': '# Functions with f-strings\ndef greet_student(name, age):\n    """Greet a student"""\n    return f"Hello {name}! You are {age} years old."\n\ndef calculate_grade(score):\n    """Calculate grade from score"""\n    if score >= 90:\n        return "A"\n    elif score >= 80:\n        return "B"\n    else:\n        return "C"\n\n# Test the functions\ngreeting = greet_student("Alice", 16)\nprint(greeting)\n\nscore = 85\ngrade = calculate_grade(score)\nprint(f"Score {score}% = Grade {grade}")'
+        };
+        
+        async function initPyodide() {
+            try {
+                document.getElementById('pythonStatus').textContent = 'Loading...';
+                document.getElementById('pythonStatus').className = 'status-indicator status-loading';
+                
+                pyodide = await window.loadPyodide();
+                
+                document.getElementById('pythonStatus').textContent = 'Ready';
+                document.getElementById('pythonStatus').className = 'status-indicator status-ready';
+                document.getElementById('outputDisplay').textContent = 'Python environment ready! Try running some code or click an example button above.';
+                
+                return true;
+            } catch (error) {
+                console.error('Failed to load Pyodide:', error);
+                document.getElementById('pythonStatus').textContent = 'Error';
+                document.getElementById('pythonStatus').className = 'status-indicator status-error';
+                document.getElementById('outputDisplay').textContent = 'Failed to load Python. Please refresh the page.';
+                return false;
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            initPyodide();
+            initializeEditor();
+        });
+        
+        function initializeEditor() {
+            const textarea = document.getElementById('codeEditor');
+            editor = CodeMirror.fromTextArea(textarea, {
+                mode: 'python',
+                theme: 'monokai',
+                lineNumbers: true,
+                autoCloseBrackets: true,
+                matchBrackets: true,
+                indentUnit: 4,
+                indentWithTabs: false,
+                lineWrapping: true,
+                extraKeys: {
+                    'Ctrl-Enter': runCode,
+                    'Cmd-Enter': runCode,
+                    'Tab': function(cm) { cm.replaceSelection('    ', 'end'); }
+                }
+            });
+            editor.setValue('print(f"Hello, World! This is Python 3 with f-strings!")');
+        }
+        
+        function executePythonCode(code) {
+            if (!pyodide) {
+                return { success: false, error: 'Python environment still loading. Please wait...' };
+            }
+            
+            try {
+                pyodide.runPython(`
+import sys
+from io import StringIO
+sys.stdout = StringIO()
+sys.stderr = StringIO()
+
+import builtins
+def custom_input(prompt=''):
+    import js
+    result = js.window.prompt(str(prompt))
+    return '' if result is None else str(result)
+
+builtins.input = custom_input
+`);
+                
+                pyodide.runPython(code);
+                
+                const stdout = pyodide.runPython('sys.stdout.getvalue()');
+                const stderr = pyodide.runPython('sys.stderr.getvalue()');
+                
+                if (stderr) {
+                    return { success: false, error: stderr };
+                }
+                
+                return { success: true, output: stdout };
+                
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+        
+        function runCode() {
+            if (isRunning) return;
+            
+            const code = editor.getValue().trim();
+            if (!code) {
+                showError('Please enter some Python code to run.');
+                return;
+            }
+            
+            isRunning = true;
+            document.getElementById('runButton').disabled = true;
+            document.getElementById('outputStatus').textContent = 'Running...';
+            clearOutput();
+            
+            try {
+                const result = executePythonCode(code);
+                
+                setTimeout(function() {
+                    const outputEl = document.getElementById('outputDisplay');
+                    
+                    if (result.success) {
+                        if (result.output.trim()) {
+                            outputEl.innerHTML = '<div class="success-output">' + escapeHtml(result.output) + '</div>';
+                        } else {
+                            outputEl.innerHTML = '<div class="success-output">Code executed successfully (no output)</div>';
+                        }
+                        currentError = null;
+                    } else {
+                        outputEl.innerHTML = '<div class="error-output">' + escapeHtml(result.error) + '</div>';
+                        currentError = result.error;
+                    }
+                    
+                    document.getElementById('outputStatus').textContent = result.success ? 'Success' : 'Error';
+                    isRunning = false;
+                    document.getElementById('runButton').disabled = false;
+                }, 100);
+                
+            } catch (error) {
+                console.error('Execution error:', error);
+                showError('Execution failed: ' + error.message);
+                isRunning = false;
+                document.getElementById('runButton').disabled = false;
+            }
+        }
+        
+        function clearOutput() {
+            document.getElementById('outputDisplay').textContent = '';
+        }
+        
+        function showError(message) {
+            const outputEl = document.getElementById('outputDisplay');
+            outputEl.innerHTML = '<div class="error-output">' + escapeHtml(message) + '</div>';
+            document.getElementById('outputStatus').textContent = 'Error';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function clearCode() {
+            if (editor) {
+                editor.setValue('');
+                clearOutput();
+                document.getElementById('outputStatus').textContent = 'Ready';
+                currentError = null;
+            }
+        }
+        
+        function insertExample(type) {
+            if (editor && examples[type]) {
+                editor.setValue(examples[type]);
+                editor.focus();
+            }
+        }
+        
+        function toggleSettings() {
+            const setup = document.getElementById('apiSetup');
+            setup.style.display = setup.style.display === 'none' ? 'flex' : 'none';
+        }
+        
+        function addStatusLine(message, type) {
+            type = type || 'info';
+            const statusEl = document.getElementById('connectionStatus');
+            const line = document.createElement('div');
+            line.className = 'status-line status-' + type;
+            line.textContent = message;
+            statusEl.appendChild(line);
+            statusEl.scrollTop = statusEl.scrollHeight;
+        }
+        
+        function clearStatus() {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.innerHTML = '<div class="status-line status-info">Starting connection...</div>';
+        }
+        
+        async function connectGemini() {
+            const keyInput = document.getElementById('googleApiKey');
+            const connectBtn = document.getElementById('connectBtn');
+            
+            googleApiKey = keyInput.value.trim();
+            
+            if (!googleApiKey) {
+                addStatusLine('Please enter API key', 'error');
+                return;
+            }
+            
+            if (!googleApiKey.startsWith('AIza')) {
+                addStatusLine('Invalid API key format (should start with AIza)', 'error');
+                return;
+            }
+            
+            connectBtn.disabled = true;
+            connectBtn.textContent = 'Testing Connection...';
+            clearStatus();
+            
+            addStatusLine('Testing Google Gemini...', 'info');
+            
+            try {
+                const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + googleApiKey, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: 'Test'
+                            }]
+                        }]
+                    })
+                });
+                
+                if (response.ok) {
+                    addStatusLine('Connected successfully!', 'success');
+                    enableChatInterface();
+                    connectBtn.textContent = 'Connected!';
+                    setTimeout(function() {
+                        document.getElementById('apiSetup').style.display = 'none';
+                    }, 2000);
+                } else {
+                    const errorData = await response.json().catch(function() { return {}; });
+                    addStatusLine('Connection failed: ' + (errorData.error ? errorData.error.message : 'HTTP ' + response.status), 'error');
+                    connectBtn.disabled = false;
+                    connectBtn.textContent = 'Retry';
+                }
+                
+            } catch (error) {
+                addStatusLine('Connection failed: ' + error.message, 'error');
+                connectBtn.disabled = false;
+                connectBtn.textContent = 'Retry';
+            }
+        }
+        
+        async function sendMessage() {
+            if (!isConnected) {
+                alert('Please connect to Gemini first using the "Connect AI" button.');
+                return;
+            }
+            
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            input.value = '';
+            input.disabled = true;
+            document.getElementById('sendButton').disabled = true;
+            
+            addMessage('user', message);
+            addTypingIndicator();
+            
+            try {
+                const context = {
+                    currentCode: editor ? editor.getValue() : '',
+                    lastError: currentError,
+                    hasError: !!currentError
+                };
+                
+                const systemPrompt = SYSTEM_PROMPT + 
+                    '\n\nContext:\n- Student code: ' + (context.currentCode || 'none') + '\n- Last error: ' + (context.lastError || 'none');
+                
+                const conversationText = systemPrompt + '\n\nUser: ' + message;
+                
+                const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + googleApiKey, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: conversationText
+                            }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.7,
+                            maxOutputTokens: 800
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('API error: ' + response.status);
+                }
+                
+                const data = await response.json();
+                const aiMessage = data.candidates[0].content.parts[0].text;
+                
+                removeTypingIndicator();
+                
+                try {
+                    const parsed = JSON.parse(aiMessage);
+                    addStructuredMessage(parsed);
+                } catch (jsonError) {
+                    const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        try {
+                            const parsed = JSON.parse(jsonMatch[0]);
+                            addStructuredMessage(parsed);
+                        } catch (e) {
+                            addMessage('ai', aiMessage);
+                        }
+                    } else {
+                        addMessage('ai', aiMessage);
+                    }
+                }
+                
+                messages.push({ role: 'user', content: message });
+                messages.push({ role: 'assistant', content: aiMessage });
+                
+            } catch (error) {
+                console.error('Chat error:', error);
+                removeTypingIndicator();
+                addMessage('ai', 'Sorry, there was an error: ' + error.message);
+            }
+            
+            input.disabled = false;
+            document.getElementById('sendButton').disabled = false;
+            input.focus();
+        }
+        
+        function enableChatInterface() {
+            isConnected = true;
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendButton').disabled = false;
+            document.getElementById('helpBtn').disabled = false;
+            document.getElementById('contextIndicator').textContent = 'Using: Gemini 2.0 Flash';
+            const welcomeMsg = document.getElementById('welcomeMessage');
+            if (welcomeMsg) {
+                welcomeMsg.style.display = 'none';
+            }
+            
+            addMessage('ai', 'Hi! I\'m your AI Python tutor using Google Gemini 2.0 Flash. I\'m connected and ready to help! Ask me anything or run some code and I\'ll help you understand it!');
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+        
+        function addMessage(type, content) {
+            const messagesEl = document.getElementById('messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message ' + type + '-message';
+            messageEl.textContent = content;
+            messagesEl.appendChild(messageEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        function addStructuredMessage(data) {
+            const messagesEl = document.getElementById('messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message ai-message';
+            
+            let html = '';
+            
+            if (data.explanation) {
+                html += '<div style="margin-bottom: 12px;">' + escapeHtml(data.explanation) + '</div>';
+            }
+            
+            if (data.code && data.code.trim()) {
+                html += '<div class="code-block">' + escapeHtml(data.code) + '</div>';
+            }
+            
+            if (data.suggestions && data.suggestions.length > 0) {
+                html += '<div style="margin-top: 12px;"><strong>Suggestions:</strong><ul style="margin: 8px 0 0 20px;">';
+                data.suggestions.forEach(function(suggestion) {
+                    html += '<li style="margin: 4px 0;">' + escapeHtml(suggestion) + '</li>';
+                });
+                html += '</ul></div>';
+            }
+            
+            if (!html.trim()) {
+                html = '<div>' + escapeHtml(JSON.stringify(data, null, 2)) + '</div>';
+            }
+            
+            messageEl.innerHTML = html;
+            messagesEl.appendChild(messageEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        function addTypingIndicator() {
+            const messagesEl = document.getElementById('messages');
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator';
+            indicator.id = 'typingIndicator';
+            indicator.innerHTML = 'AI is thinking...<div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+            messagesEl.appendChild(indicator);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+        
+        async function getCodeHelp() {
+            if (!isConnected) {
+                alert('Please connect to Gemini first using the "Connect AI" button.');
+                return;
+            }
+            
+            const code = editor ? editor.getValue() : '';
+            if (!code.trim()) {
+                alert('Please write some code first, then I can help you with it!');
+                return;
+            }
+            
+            const helpMessage = currentError 
+                ? 'I\'m getting this error with my code: ' + currentError + '. Can you help me fix it?\n\nHere\'s my code:\n```python\n' + code + '\n```'
+                : 'Can you help me understand and improve this code?\n\nHere\'s my code:\n```python\n' + code + '\n```';
+            
+            document.getElementById('messageInput').value = helpMessage;
+            await sendMessage();
+        }
+    </script>
+</body>
+</html>
